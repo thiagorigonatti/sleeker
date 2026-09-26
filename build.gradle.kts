@@ -1,13 +1,13 @@
 plugins {
     id("java")
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradleup.shadow") version "9.4.2"
     id("com.google.osdetector") version "1.7.3"
 }
 
 group = "me.thiagorigonatti"
-version = "0.0.10"
+version = "0.0.15"
 description =
-    "A lightweight sub-millisecond p99 latency ultra high-performance non-blocking I/O io_uring and unix-domain-sockets compatible HTTP1/2 server module with easy TLS integration support."
+    "A high-throughput sub-millisecond p99 latency ultra high-performance reactive non-blocking I/O io_uring and unix-domain-sockets compatible HTTP1/2/3 server module with easy TLS integration support."
 repositories {
     mavenCentral()
 }
@@ -15,26 +15,29 @@ repositories {
 val os = the<com.google.gradle.osdetector.OsDetector>()
 
 dependencies {
-    implementation("io.netty:netty-all:4.2.6.Final")
-    implementation("io.netty:netty-tcnative-boringssl-static:2.0.73.Final:${os.classifier}")
+    implementation("io.netty:netty-all:4.2.18.Final")
+    implementation("io.netty:netty-tcnative-boringssl-static:2.0.84.Final:${os.classifier}")
 
-    implementation("org.apache.logging.log4j:log4j-api:2.25.2")
-    implementation("org.apache.logging.log4j:log4j-core:2.25.2")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.3")
+    implementation("org.apache.logging.log4j:log4j-api:2.26.1")
+    implementation("org.apache.logging.log4j:log4j-core:2.26.1")
 
-    implementation("org.bouncycastle:bcprov-jdk18on:1.82")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.82")
-    implementation("org.bouncycastle:bctls-jdk18on:1.82")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.bouncycastle:bctls-jdk18on:1.86.1")
 
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.0")
+    implementation("tools.jackson.core:jackson-databind:3.2.3")
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 
     implementation("jakarta.validation:jakarta.validation-api:3.1.1")
 
-    testImplementation("org.postgresql:r2dbc-postgresql:1.0.7.RELEASE")
-    testImplementation("io.r2dbc:r2dbc-spi:1.0.0.RELEASE")
-    testImplementation("io.r2dbc:r2dbc-pool:1.0.2.RELEASE")
+    implementation("org.postgresql:r2dbc-postgresql:1.1.3.RELEASE")
+    implementation("io.r2dbc:r2dbc-spi:1.0.0.RELEASE")
+    implementation("io.r2dbc:r2dbc-pool:1.0.2.RELEASE")
+
+
 }
 
 tasks.register<Exec>("runSleekerTestNamed") {

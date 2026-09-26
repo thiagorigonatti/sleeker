@@ -7,32 +7,32 @@ package me.thiagorigonatti.sleeker.io;
 
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollIoHandler;
-import io.netty.channel.epoll.EpollServerDomainSocketChannel;
-import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.kqueue.KQueue;
+import io.netty.channel.kqueue.KQueueIoHandler;
+import io.netty.channel.kqueue.KQueueServerDomainSocketChannel;
+import io.netty.channel.kqueue.KQueueServerSocketChannel;
 
-public class EpollIo implements SleekIo {
+public class KQueueIo implements SleekIo {
 
     private final boolean unixDomainSocket;
 
-    public EpollIo(boolean unixDomainSocket) throws Exception {
-        if(!Epoll.isAvailable()) throw new Exception(Epoll.unavailabilityCause());
+    public KQueueIo(boolean unixDomainSocket) throws Exception {
+        if(!KQueue.isAvailable()) throw new Exception(KQueue.unavailabilityCause());
         this.unixDomainSocket = unixDomainSocket;
     }
 
     @Override
     public Class<? extends ServerChannel> getServerChannelClass() {
-        return unixDomainSocket ? EpollServerDomainSocketChannel.class : EpollServerSocketChannel.class;
+        return this.unixDomainSocket ? KQueueServerDomainSocketChannel.class : KQueueServerSocketChannel.class;
     }
 
     @Override
     public IoHandlerFactory getIoHandlerFactory() {
-        return EpollIoHandler.newFactory();
+        return KQueueIoHandler.newFactory();
     }
 
     @Override
     public boolean isAvailable() {
-        return Epoll.isAvailable();
+        return KQueue.isAvailable();
     }
 }

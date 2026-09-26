@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
+ * Copyright (c) 2026. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
  * and is available under Apache License Version 2.0, January 2004 http://www.apache.org/licenses/
  */
 
@@ -7,18 +7,17 @@ package me.thiagorigonatti.sleeker.core;
 
 import io.netty.channel.uring.IoUringIoHandlerConfig;
 import me.thiagorigonatti.sleeker.config.Yml;
-import me.thiagorigonatti.sleeker.io.EpollIo;
-import me.thiagorigonatti.sleeker.io.IoUringIo;
-import me.thiagorigonatti.sleeker.io.ServerIo;
-import me.thiagorigonatti.sleeker.io.SleekIo;
+import me.thiagorigonatti.sleeker.io.*;
 import me.thiagorigonatti.sleeker.tls.ServerSsl;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.net.URL;
 import java.util.Map;
 
 public class Config {
-
+    private static final Logger LOGGER = LogManager.getLogger(Config.class);
     private static Map<String, Object> sleekerYml;
     private static boolean http2Priority;
 
@@ -43,7 +42,9 @@ public class Config {
         }
     }
 
-    public static SleekIo getSleekIo(final ServerIo serverIo) {
+    public static SleekIo getSleekIo(final ServerIo serverIo, final boolean unixDomainSocket) throws Exception {
+
+        LOGGER.info("UnixDomainSocket = {}", unixDomainSocket);
 
         switch (serverIo) {
             case TYPE_IOURING -> {
@@ -60,11 +61,31 @@ public class Config {
                         .setRingSize(ringSize)
                         .setCqSize(cqSize);
 
-                return new IoUringIo(handlerConfig);
+                LOGGER.info("I/O = IoUring");
+                return new IoUringIo(handlerConfig, unixDomainSocket);
             }
-            default -> {
-                return new EpollIo();
+
+            case TYPE_EPOLL -> {
+                LOGGER.info("I/O = Epoll");
+                return new EpollIo(unixDomainSocket);
+            }
+
+            case TYPE_KQUEUE -> {
+                LOGGER.info("I/O = KQueue");
+                return new KQueueIo(unixDomainSocket);
+            }
+
+            case TYPE_NIO -> {
+                LOGGER.info("I/O = Nio");
+                return new NioIo(unixDomainSocket);
+            }
+
+            case TYPE_LOCAL -> {
+                LOGGER.info("I/O = Local");
+                return new LocalIo(unixDomainSocket);
             }
         }
+
+        throw new AssertionError("Unknown I/O type");
     }
 }

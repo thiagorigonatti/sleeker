@@ -7,32 +7,30 @@ package me.thiagorigonatti.sleeker.io;
 
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollIoHandler;
-import io.netty.channel.epoll.EpollServerDomainSocketChannel;
-import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.nio.NioIoHandler;
+import io.netty.channel.socket.nio.NioServerDomainSocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 
-public class EpollIo implements SleekIo {
+public class NioIo implements SleekIo {
 
     private final boolean unixDomainSocket;
 
-    public EpollIo(boolean unixDomainSocket) throws Exception {
-        if(!Epoll.isAvailable()) throw new Exception(Epoll.unavailabilityCause());
+    public NioIo(boolean unixDomainSocket) {
         this.unixDomainSocket = unixDomainSocket;
     }
 
     @Override
     public Class<? extends ServerChannel> getServerChannelClass() {
-        return unixDomainSocket ? EpollServerDomainSocketChannel.class : EpollServerSocketChannel.class;
+        return this.unixDomainSocket ? NioServerDomainSocketChannel.class : NioServerSocketChannel.class;
     }
 
     @Override
     public IoHandlerFactory getIoHandlerFactory() {
-        return EpollIoHandler.newFactory();
+        return NioIoHandler.newFactory();
     }
 
     @Override
     public boolean isAvailable() {
-        return Epoll.isAvailable();
+        return true;
     }
 }

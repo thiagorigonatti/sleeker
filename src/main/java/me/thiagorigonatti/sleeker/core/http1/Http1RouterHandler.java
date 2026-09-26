@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
+ * Copyright (c) 2026. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
  * and is available under Apache License Version 2.0, January 2004 http://www.apache.org/licenses/
  */
 
@@ -21,8 +21,9 @@ import me.thiagorigonatti.sleeker.util.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,7 @@ public class Http1RouterHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private static final Logger LOGGER = LogManager.getLogger(Http1RouterHandler.class);
     public final Map<String, Http1Setup> handlers = new HashMap<>();
+    public final Map<String, Http1Setup> fileHandlers = new HashMap<>();
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
@@ -80,12 +82,16 @@ public class Http1RouterHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private Runnable getTask(ChannelHandlerContext ctx, Http1Setup setup, FullHttpRequest msg) {
 
+        if (!setup.httpMethodList().contains(msg.method())) {
+            return () -> Http1Responder.reply(ctx, msg, HttpResponseStatus.METHOD_NOT_ALLOWED);
+        }
+
         final QueryStringDecoder decoder = new QueryStringDecoder(msg.uri());
         final Map<String, List<String>> params = decoder.parameters();
 
         final Http1Request http1Request = new Http1Request(
-                (InetSocketAddress) ctx.channel().localAddress(),
-                (InetSocketAddress) ctx.channel().remoteAddress(),
+                ctx.channel().localAddress(),
+                ctx.channel().remoteAddress(),
                 msg.method(),
                 msg.headers(),
                 URI.create(msg.uri()).getPath(),
@@ -123,6 +129,7 @@ public class Http1RouterHandler extends SimpleChannelInboundHandler<FullHttpRequ
                     () -> toRun(ctx, msg, () -> setup.http1SleekHandler().handleTRACE(http1Request, http1Response));
             case "CONNECT" ->
                     () -> toRun(ctx, msg, () -> setup.http1SleekHandler().handleCONNECT(http1Request, http1Response));
+
             default -> () -> Http1Responder.reply(ctx, msg, HttpResponseStatus.METHOD_NOT_ALLOWED);
         };
     }
@@ -133,27 +140,24 @@ public class Http1RouterHandler extends SimpleChannelInboundHandler<FullHttpRequ
         } catch (Exception e) {
             LOGGER.warn(e.getMessage());
             exceptionCaught(ctx, e);
-        } finally {
-            msg.release();
         }
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
-
-        Http1Setup http1Setup = handlers.get(URI.create(msg.uri()).getPath());
-        msg.retain();
-        if (http1Setup == null) {
-            Http1Responder.reply(ctx, msg, HttpResponseStatus.NOT_FOUND);
-            msg.release();
-            return;
-        }
-
-        if (http1Setup.httpMethodList().contains(msg.method())) {
+        Http1Setup http1Setup = handlers.get(msg.uri());
+        if (http1Setup != null) {
             SleekerServer.EXECUTOR_SERVICE.execute(getTask(ctx, http1Setup, msg));
         } else {
-            Http1Responder.reply(ctx, msg, HttpResponseStatus.METHOD_NOT_ALLOWED);
-            msg.release();
+            for (String s : fileHandlers.keySet()) {
+
+                if (msg.uri().startsWith(s) && Files.exists(Path.of(msg.uri()))) {
+                    Http1Setup http1FileSetup = fileHandlers.get(s);
+                    SleekerServer.EXECUTOR_SERVICE.execute(getTask(ctx, http1FileSetup, msg));
+                    return;
+                }
+            }
+            Http1Responder.reply(ctx, msg, HttpResponseStatus.NOT_FOUND);
         }
     }
 }

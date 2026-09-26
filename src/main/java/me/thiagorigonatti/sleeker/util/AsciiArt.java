@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
+ * Copyright (c) 2026. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
  * and is available under Apache License Version 2.0, January 2004 http://www.apache.org/licenses/
  */
 
@@ -11,28 +11,28 @@ import java.util.function.Consumer;
 public class AsciiArt {
 
     public static String colorTranslate(String text) {
-        return text.replace("&0", ColorCode.c0)
-                .replace("&1", ColorCode.c1)
-                .replace("&2", ColorCode.c2)
-                .replace("&3", ColorCode.c3)
-                .replace("&4", ColorCode.c4)
-                .replace("&5", ColorCode.c5)
-                .replace("&6", ColorCode.c6)
-                .replace("&7", ColorCode.c7)
-                .replace("&8", ColorCode.c8)
-                .replace("&9", ColorCode.c9)
-                .replace("&a", ColorCode.ca)
-                .replace("&b", ColorCode.cb)
-                .replace("&c", ColorCode.cc)
-                .replace("&d", ColorCode.cd)
-                .replace("&e", ColorCode.ce)
-                .replace("&f", ColorCode.cf);
+        return text.replace("&0", ColorCode.C_0)
+                .replace("&1", ColorCode.C_1)
+                .replace("&2", ColorCode.C_2)
+                .replace("&3", ColorCode.C_3)
+                .replace("&4", ColorCode.C_4)
+                .replace("&5", ColorCode.C_5)
+                .replace("&6", ColorCode.C_6)
+                .replace("&7", ColorCode.C_7)
+                .replace("&8", ColorCode.C_8)
+                .replace("&9", ColorCode.C_9)
+                .replace("&a", ColorCode.C_A)
+                .replace("&b", ColorCode.C_B)
+                .replace("&c", ColorCode.C_C)
+                .replace("&d", ColorCode.C_D)
+                .replace("&e", ColorCode.C_E)
+                .replace("&f", ColorCode.C_F);
     }
 
     public static void printLogo(Consumer<String> consumer) {
 
         List<String> logoLines = List.of(
-                colorTranslate("&0    &3__&b___&2__&a__.&e__                 &b__          &fv0.0.10  \033[0m"),
+                colorTranslate("&0    &3__&b___&2__&a__.&e__                 &b__          &fv0.0.15  \033[0m"),
                 colorTranslate("&0   &3/   &b__&2__&a_/|  &e|   &5__&d__   &3__&b__ |  &a| _&e_ &c__&4__&5__&d__&9__&b_&0   \033[0m"),
                 colorTranslate("&0   &b\\&3_&b__&2__  &a\\ &e|  | &5_/ &d__ &9\\&3_/ &b__ \\|  &a|/ &e/&c/ &4__ &5\\&d_  &9_&b_ \\  \033[0m"),
                 colorTranslate("&b   /        &e\\|  &c|_&5\\  &d_&9__&3/&b\\  ___/&a|    &e<&c\\  &4_&5__&d/|  &b| \\/  \033[0m"),
