@@ -11,5 +11,6 @@ import io.netty.handler.codec.http2.Http2Headers;
 
 import java.net.InetSocketAddress;
 
-public record Http2Request(InetSocketAddress localAddress, InetSocketAddress remoteAddress, Http2Headers headers, String body, Http2FrameStream stream, String path, HttpMethod method) {
+public record Http2Request(InetSocketAddress localAddress, InetSocketAddress remoteAddress, Http2Headers headers,
+                           String body, Http2FrameStream stream, String path, HttpMethod method) {
 }

@@ -17,7 +17,7 @@ public class KQueueIo implements SleekIo {
     private final boolean unixDomainSocket;
 
     public KQueueIo(boolean unixDomainSocket) throws Exception {
-        if(!KQueue.isAvailable()) throw new Exception(KQueue.unavailabilityCause());
+        if (!KQueue.isAvailable()) throw new Exception(KQueue.unavailabilityCause());
         this.unixDomainSocket = unixDomainSocket;
     }
 

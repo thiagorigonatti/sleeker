@@ -5,6 +5,7 @@
 
 package me.thiagorigonatti.sleeker.io;
 
+import io.netty.channel.DefaultSelectStrategyFactory;
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.Epoll;
@@ -15,9 +16,11 @@ import io.netty.channel.epoll.EpollServerSocketChannel;
 public class EpollIo implements SleekIo {
 
     private final boolean unixDomainSocket;
+    private final int maxEvents;
 
-    public EpollIo(boolean unixDomainSocket) throws Exception {
-        if(!Epoll.isAvailable()) throw new Exception(Epoll.unavailabilityCause());
+    public EpollIo(int maxEvents, boolean unixDomainSocket) throws Exception {
+        if (!Epoll.isAvailable()) throw new Exception(Epoll.unavailabilityCause());
+        this.maxEvents = maxEvents;
         this.unixDomainSocket = unixDomainSocket;
     }
 
@@ -28,7 +31,7 @@ public class EpollIo implements SleekIo {
 
     @Override
     public IoHandlerFactory getIoHandlerFactory() {
-        return EpollIoHandler.newFactory();
+        return EpollIoHandler.newFactory(this.maxEvents, DefaultSelectStrategyFactory.INSTANCE);
     }
 
     @Override

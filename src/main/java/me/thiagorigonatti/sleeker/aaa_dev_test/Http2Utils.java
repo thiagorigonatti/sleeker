@@ -5,7 +5,6 @@
 
 package me.thiagorigonatti.sleeker.aaa_dev_test;
 
-import jakarta.validation.constraints.NotNull;
 import me.thiagorigonatti.sleeker.core.http2.Http2Request;
 import org.apache.logging.log4j.Logger;
 
@@ -15,7 +14,7 @@ public class Http2Utils {
 
     private static final StringBuilder STRING_BUILDER = new StringBuilder();
 
-    public static void logRequest(@NotNull Http2Request http2Request, @NotNull Logger logger) {
+    public static void logRequest(Http2Request http2Request, Logger logger) {
 
         STRING_BUILDER.setLength(0);
 

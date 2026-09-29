@@ -15,7 +15,7 @@ public class IoUringIo implements SleekIo {
     private final boolean unixDomainSocket;
 
     public IoUringIo(IoUringIoHandlerConfig config, boolean unixDomainSocket) throws Exception {
-        if(!IoUring.isAvailable()) throw new Exception(IoUring.unavailabilityCause());
+        if (!IoUring.isAvailable()) throw new Exception(IoUring.unavailabilityCause());
         this.config = config;
         this.unixDomainSocket = unixDomainSocket;
     }
@@ -27,7 +27,7 @@ public class IoUringIo implements SleekIo {
 
     @Override
     public IoHandlerFactory getIoHandlerFactory() {
-        return IoUringIoHandler.newFactory(config);
+        return IoUringIoHandler.newFactory(this.config);
     }
 
     @Override

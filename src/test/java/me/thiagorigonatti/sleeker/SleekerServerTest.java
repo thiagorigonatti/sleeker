@@ -8,11 +8,8 @@ package me.thiagorigonatti.sleeker;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import me.thiagorigonatti.sleeker.core.SleekerServer;
-import me.thiagorigonatti.sleeker.database.postgres.PostgresTest;
 import me.thiagorigonatti.sleeker.handler.http1.Http1TestHandler;
-import me.thiagorigonatti.sleeker.handler.http1.K6Http1TestEntityHandler;
 import me.thiagorigonatti.sleeker.handler.http2.Http2TestHandler;
-import me.thiagorigonatti.sleeker.handler.http2.K6Http2TestEntityHandler;
 import me.thiagorigonatti.sleeker.io.ServerIo;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -24,36 +21,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SleekerServerTest {
-
-    public static void main(String[] args) throws Exception {
-
-        final K6Http1TestEntityHandler k6Http1TestEntityHandler = new K6Http1TestEntityHandler();
-        final K6Http2TestEntityHandler k6Http2TestEntityHandler = new K6Http2TestEntityHandler();
-
-        final SleekerServer sleekerServer = new SleekerServer.Builder()
-                .addHttp2Context("/entity", k6Http2TestEntityHandler,
-                        HttpMethod.GET,
-                        HttpMethod.POST)
-
-                .addHttp1Context("/entity", k6Http1TestEntityHandler,
-                        HttpMethod.GET,
-                        HttpMethod.POST)
-
-                .withSsl(Path.of("localhost-cert.pem"), Path.of("localhost-key.pem"))
-                .build();
-
-        PostgresTest.truncateEntityTable()
-                .then(PostgresTest.createTableIfNotExists())
-                .subscribe();
-
-        sleekerServer.startServer(new InetSocketAddress("localhost", 8080), ServerIo.TYPE_IOURING);
-    }
 
     private final Http1TestHandler http1TestHandler = new Http1TestHandler();
 
@@ -65,13 +37,13 @@ public class SleekerServerTest {
                         HttpMethod.POST)
                 .build();
 
-        sleekerServer.startServer(new InetSocketAddress("localhost", 8080), ServerIo.TYPE_IOURING);
+        sleekerServer.startServer(new InetSocketAddress("localhost", 7357), ServerIo.TYPE_IOURING);
     }
 
-    private HttpResponse<String> sendTestRequest(final String method) {
+    private HttpResponse<String> sendTestRequest(final String method, final CharSequence path) {
         try (HttpClient httpClient = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://localhost:8080/http1_test"))
+                    .uri(URI.create("http://localhost:7357" + path))
                     .method(HttpMethod.valueOf(method).name(), HttpRequest.BodyPublishers.noBody())
                     .build();
             return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -82,20 +54,26 @@ public class SleekerServerTest {
 
     @Test
     void givenStarting_whenSetHttp2_but_noSslContext_shouldAbort() {
-        assertThrows(AssertionError.class, () -> new SleekerServer.Builder()
+        assertThrows(IllegalStateException.class, () -> new SleekerServer.Builder()
                 .addHttp2Context("/http2_test", new Http2TestHandler())
                 .build());
     }
 
     @Test
     void givenRequests_whenResponding_shouldStatusBeCorrect() {
-        assertEquals(sendTestRequest("GET").statusCode(), HttpResponseStatus.OK.code());
-        assertEquals(sendTestRequest("POST").statusCode(), HttpResponseStatus.NOT_IMPLEMENTED.code());
-        assertEquals(sendTestRequest("DELETE").statusCode(), HttpResponseStatus.METHOD_NOT_ALLOWED.code());
+        assertEquals(sendTestRequest("GET", "/http1_test").statusCode(), HttpResponseStatus.OK.code());
+        assertEquals(sendTestRequest("POST", "/http1_test").statusCode(), HttpResponseStatus.NOT_IMPLEMENTED.code());
+        assertEquals(sendTestRequest("DELETE", "/http1_test").statusCode(), HttpResponseStatus.METHOD_NOT_ALLOWED.code());
+        assertEquals(sendTestRequest("CUSTOM", "/http1_test").statusCode(), HttpResponseStatus.METHOD_NOT_ALLOWED.code());
+    }
+
+    @Test
+    void givenRequestsToUnknownEndPoints_whenResponding_shouldStatusBeNotFound() {
+        assertEquals(sendTestRequest("GET", "/unknown").statusCode(), HttpResponseStatus.NOT_FOUND.code());
     }
 
     @Test
     void givenAHeadRequest_whenResponding_shouldBodyBeEmpty() {
-        assertTrue(sendTestRequest("HEAD").body().isEmpty());
+        assertTrue(sendTestRequest("HEAD", "/http1_test").body().isEmpty());
     }
 }

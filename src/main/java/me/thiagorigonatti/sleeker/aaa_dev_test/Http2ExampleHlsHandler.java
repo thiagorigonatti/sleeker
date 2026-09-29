@@ -7,24 +7,25 @@ package me.thiagorigonatti.sleeker.aaa_dev_test;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import me.thiagorigonatti.sleeker.core.http1.Http1Request;
-import me.thiagorigonatti.sleeker.core.http1.Http1Response;
-import me.thiagorigonatti.sleeker.core.http1.Http1SleekHandler;
+import me.thiagorigonatti.sleeker.core.http2.Http2Request;
+import me.thiagorigonatti.sleeker.core.http2.Http2Response;
+import me.thiagorigonatti.sleeker.core.http2.Http2SleekHandler;
 import me.thiagorigonatti.sleeker.util.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class Http1ExampleHlsHandler extends Http1SleekHandler {
+public class Http2ExampleHlsHandler extends Http2SleekHandler {
 
-    private static final Logger LOGGER = LogManager.getLogger(Http1ExampleHlsHandler.class);
+    private static final Logger LOGGER = LogManager.getLogger(Http2ExampleHlsHandler.class);
 
     @Override
-    public void handleGET(Http1Request http1Request, Http1Response http1Response) {
+    public void handleGET(Http2Request http2Request, Http2Response http2Response) {
 
-        Path path = Path.of(http1Request.path());
+        Path path = Path.of(http2Request.path());
 
         String ext = path.toString().substring(path.toString().lastIndexOf(".") + 1);
 
@@ -36,11 +37,11 @@ public class Http1ExampleHlsHandler extends Http1SleekHandler {
 
         else if (ext.equalsIgnoreCase("m4s")) cache = "public, max-age=31536000, immutable";
 
-        http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.byExtension(ext));
-        http1Response.addHeader(HttpHeaderNames.CACHE_CONTROL, cache);
+        http2Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.byExtension(ext));
+        http2Response.addHeader(HttpHeaderNames.CACHE_CONTROL, cache);
         try {
-            http1Response.replyFileChunked(path, 0, Files.size(path), HttpResponseStatus.OK);
-        } catch (Exception e) {
+            http2Response.replyFileChunked(path, 0, Files.size(path), HttpResponseStatus.OK);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

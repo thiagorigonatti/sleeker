@@ -10,13 +10,9 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import me.thiagorigonatti.sleeker.core.http1.Http1Request;
 import me.thiagorigonatti.sleeker.core.http1.Http1Response;
 import me.thiagorigonatti.sleeker.core.http1.Http1SleekHandler;
-import me.thiagorigonatti.sleeker.exception.HttpSleekException;
 import me.thiagorigonatti.sleeker.util.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import tools.jackson.databind.ObjectMapper;
-
-import java.util.Map;
 
 public class Http1ExampleApiHandler extends Http1SleekHandler {
 
@@ -35,16 +31,16 @@ public class Http1ExampleApiHandler extends Http1SleekHandler {
     @Override
     protected void handlePOST(Http1Request http1Request, Http1Response http1Response) {
 
-        if (http1Request.body().isEmpty() || http1Request.body().isBlank()) {
+/*        if (http1Request.body().isEmpty() || http1Request.body().isBlank()) {
 
             throw new HttpSleekException.BaseBuilder<>().contentType(ContentType.APPLICATION_JSON_UTF8)
                     .httpResponseStatus(HttpResponseStatus.BAD_REQUEST)
                     .responseMessage(new ObjectMapper().writeValueAsString(Map.of("errorMessage", "Body cannot be empty or blank")))
                     .build();
-        }
+        }*/
 
         http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
-        http1Response.setBody("Saved! (HTTP/1.1)");
+        //http1Response.setBody("Saved! (HTTP/1.1)");
         http1Response.reply(HttpResponseStatus.CREATED);
 
         Http1Utils.logRequest(http1Request, LOGGER);

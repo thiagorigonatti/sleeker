@@ -82,6 +82,16 @@ public class Http1RouterHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private Runnable getTask(ChannelHandlerContext ctx, Http1Setup setup, FullHttpRequest msg) {
 
+        final Http1Response http1Response = new Http1Response(ctx, msg.protocolVersion());
+
+        if (setup.cors() != null) {
+            setup.httpMethodList().add(HttpMethod.OPTIONS);
+            CorsAdder.addCors(setup.cors(), http1Response);
+
+        } else if (this.isCorsEnabled()) {
+            CorsAdder.addCors(this.getCors(), http1Response);
+        }
+
         if (!setup.httpMethodList().contains(msg.method())) {
             return () -> Http1Responder.reply(ctx, msg, HttpResponseStatus.METHOD_NOT_ALLOWED);
         }
@@ -98,12 +108,6 @@ public class Http1RouterHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 params,
                 msg.content().toString(CharsetUtil.UTF_8));
 
-        final Http1Response http1Response = new Http1Response(ctx, msg.protocolVersion());
-
-        if (this.isCorsEnabled()) {
-            CorsAdder.addCors(this.getCors(), http1Response);
-        }
-
         return switch (http1Request.method().name()) {
             case "GET" -> () -> toRun(ctx, msg, () -> setup.http1SleekHandler().handleGET(http1Request, http1Response));
             case "POST" ->
@@ -117,8 +121,7 @@ public class Http1RouterHandler extends SimpleChannelInboundHandler<FullHttpRequ
                     () -> toRun(ctx, msg, () -> setup.http1SleekHandler().handleHEAD(http1Request, http1Response));
 
             case "OPTIONS" -> () -> toRun(ctx, msg, () -> {
-
-                if (this.isCorsEnabled()) {
+                if (setup.cors() != null || this.isCorsEnabled()) {
                     http1Response.reply(HttpResponseStatus.NO_CONTENT);
                 } else {
                     setup.http1SleekHandler().handleOPTIONS(http1Request, http1Response);

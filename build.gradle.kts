@@ -15,29 +15,30 @@ repositories {
 val os = the<com.google.gradle.osdetector.OsDetector>()
 
 dependencies {
-    implementation("io.netty:netty-all:4.2.18.Final")
-    implementation("io.netty:netty-tcnative-boringssl-static:2.0.84.Final:${os.classifier}")
+
+    implementation("io.netty:netty-codec-http2:4.2.18.Final")
+
+    runtimeOnly("io.netty:netty-tcnative-boringssl-static:2.0.84.Final:linux-x86_64")
+
+    implementation("io.netty:netty-transport-native-io_uring:4.2.18.Final:linux-x86_64")
+    implementation("io.netty:netty-transport-native-epoll:4.2.18.Final:linux-x86_64")
+    implementation("io.netty:netty-transport-native-kqueue:4.2.18.Final:osx-x86_64")
+
+    implementation("org.apache.logging.log4j:log4j-api:2.26.1")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:2.26.1")
 
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.3")
-    implementation("org.apache.logging.log4j:log4j-api:2.26.1")
-    implementation("org.apache.logging.log4j:log4j-core:2.26.1")
-
-    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
-    implementation("org.bouncycastle:bctls-jdk18on:1.86.1")
-
     implementation("tools.jackson.core:jackson-databind:3.2.3")
 
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
+    //implementation("jakarta.validation:jakarta.validation-api:3.1.1")
 
-    implementation("jakarta.validation:jakarta.validation-api:3.1.1")
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    implementation("org.postgresql:r2dbc-postgresql:1.1.3.RELEASE")
-    implementation("io.r2dbc:r2dbc-spi:1.0.0.RELEASE")
-    implementation("io.r2dbc:r2dbc-pool:1.0.2.RELEASE")
-
-
+    testImplementation("org.postgresql:r2dbc-postgresql:1.1.3.RELEASE")
+    testImplementation("io.r2dbc:r2dbc-spi:1.0.0.RELEASE")
+    testImplementation("io.r2dbc:r2dbc-pool:1.0.2.RELEASE")
 }
 
 tasks.register<Exec>("runSleekerTestNamed") {
@@ -61,6 +62,16 @@ tasks.shadowJar {
 
 tasks.withType<Jar> {
     manifest.attributes["Main-Class"] = "me.thiagorigonatti.sleeker.aaa_dev_test.Test"
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(25)
 }
 
 tasks.test {

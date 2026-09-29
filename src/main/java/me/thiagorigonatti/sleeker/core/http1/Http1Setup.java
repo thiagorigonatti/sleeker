@@ -6,8 +6,9 @@
 package me.thiagorigonatti.sleeker.core.http1;
 
 import io.netty.handler.codec.http.HttpMethod;
+import me.thiagorigonatti.sleeker.guard.Cors;
 
 import java.util.Set;
 
-public record Http1Setup(Http1SleekHandler http1SleekHandler, Set<HttpMethod> httpMethodList) {
+public record Http1Setup(Http1SleekHandler http1SleekHandler, Set<HttpMethod> httpMethodList, Cors cors) {
 }

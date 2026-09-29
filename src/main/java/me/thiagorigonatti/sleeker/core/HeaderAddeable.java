@@ -5,8 +5,6 @@
 
 package me.thiagorigonatti.sleeker.core;
 
-import jakarta.validation.constraints.NotNull;
-
 public interface HeaderAddeable {
-    void addHeader(@NotNull CharSequence httpHeaderName, @NotNull CharSequence httpHeaderValue);
+    void addHeader(CharSequence httpHeaderName, CharSequence httpHeaderValue);
 }

@@ -62,9 +62,8 @@ public class SleekerServer {
         this.useHttp1 = builder.useHttp1;
         this.useHttp2 = builder.useHttp2;
 
-
         if (!useSsl && useHttp2) {
-            throw new AssertionError("HTTP2 protocol requires SSL, which was not enabled, check whether SSL context was corrected created, or disable HTTP2 contexts.");
+            throw new IllegalStateException("HTTP/2 requires SSL/TLS in this configuration, but no valid SSL context is available. Verify that the SSL context was created correctly, or disable HTTP/2.");
         }
 
         if (builder.corsEnabled) {
@@ -83,7 +82,6 @@ public class SleekerServer {
         this.http2RouterHandler = builder.http2RouterHandler;
     }
 
-
     public void startServer(final SocketAddress socketAddress, final ServerIo serverIo) throws Exception {
 
         final SleekIo sleekIo = Config.getSleekIo(serverIo,
@@ -91,8 +89,8 @@ public class SleekerServer {
 
         IoHandlerFactory ioHandlerFactory = sleekIo.getIoHandlerFactory();
 
-        EventLoopGroup bossGroup = new MultiThreadIoEventLoopGroup(1, ioHandlerFactory);
-        EventLoopGroup workerGroup = new MultiThreadIoEventLoopGroup(1, ioHandlerFactory);
+        EventLoopGroup bossGroup = new MultiThreadIoEventLoopGroup(Config.getBossThreads(), ioHandlerFactory);
+        EventLoopGroup workerGroup = new MultiThreadIoEventLoopGroup(Config.getWorkerThreads(), ioHandlerFactory);
 
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(bossGroup, workerGroup)
@@ -117,7 +115,8 @@ public class SleekerServer {
                                     @Override
                                     protected void configurePipeline(ChannelHandlerContext ctx, String protocol) {
                                         switch (protocol) {
-                                            case ApplicationProtocolNames.HTTP_2 -> configureHttp2(ctx.pipeline());
+                                            case ApplicationProtocolNames.HTTP_2 ->
+                                                    configureHttp2Chunked(ctx.pipeline());
                                             case ApplicationProtocolNames.HTTP_1_1 -> {
                                                 if (useHttp1) {
                                                     configureHttp1Chunked(ctx.pipeline());
@@ -171,6 +170,15 @@ public class SleekerServer {
         pipeline.addLast(Http2FrameCodecBuilder.forServer().build(), new Http2MultiplexHandler(http2RouterHandler));
     }
 
+    private void configureHttp2Chunked(final ChannelPipeline pipeline) {
+        pipeline.addLast(Http2FrameCodecBuilder.forServer().build(), new Http2MultiplexHandler(new ChannelInitializer<>() {
+            @Override
+            protected void initChannel(Channel ch) {
+                ch.pipeline().addLast(new ChunkedWriteHandler(), http2RouterHandler);
+            }
+        }));
+    }
+
     public static class Builder {
 
         private boolean useSsl;
@@ -199,21 +207,56 @@ public class SleekerServer {
         public Builder addHttp1Context(final String path, final Http1SleekHandler http1SleekHandler, final HttpMethod... allowedHttpMethods) {
             useHttp1 = true;
             final Set<HttpMethod> httpMethods = new HashSet<>(Set.of(allowedHttpMethods));
-            this.http1RouterHandler.handlers.put(path, new Http1Setup(http1SleekHandler, httpMethods));
+            this.http1RouterHandler.handlers.put(path, new Http1Setup(http1SleekHandler, httpMethods, null));
+            return this;
+        }
+
+        public Builder addHttp1Context(final String path, final Http1SleekHandler http1SleekHandler, final Cors cors, final HttpMethod... allowedHttpMethods) {
+            useHttp1 = true;
+            final Set<HttpMethod> httpMethods = new HashSet<>(Set.of(allowedHttpMethods));
+            this.http1RouterHandler.handlers.put(path, new Http1Setup(http1SleekHandler, httpMethods, cors));
             return this;
         }
 
         public Builder serveHttp1Files(final String rootDir, final Http1SleekHandler http1SleekHandler, final HttpMethod... allowedHttpMethods) {
             useHttp1 = true;
             final Set<HttpMethod> httpMethods = new HashSet<>(Set.of(allowedHttpMethods));
-            this.http1RouterHandler.fileHandlers.put(rootDir, new Http1Setup(http1SleekHandler, httpMethods));
+            this.http1RouterHandler.fileHandlers.put(rootDir, new Http1Setup(http1SleekHandler, httpMethods, null));
+            return this;
+        }
+
+        public Builder serveHttp1Files(final String rootDir, final Http1SleekHandler http1SleekHandler, final Cors cors, final HttpMethod... allowedHttpMethods) {
+            useHttp1 = true;
+            final Set<HttpMethod> httpMethods = new HashSet<>(Set.of(allowedHttpMethods));
+            this.http1RouterHandler.fileHandlers.put(rootDir, new Http1Setup(http1SleekHandler, httpMethods, cors));
             return this;
         }
 
         public Builder addHttp2Context(final String path, final Http2SleekHandler http2SleekHandler, final HttpMethod... allowedHttpMethods) {
             useHttp2 = true;
             final Set<HttpMethod> httpMethods = new HashSet<>(Set.of(allowedHttpMethods));
-            this.http2RouterHandler.handlers.put(path, new Http2Setup(http2SleekHandler, httpMethods));
+            this.http2RouterHandler.handlers.put(path, new Http2Setup(http2SleekHandler, httpMethods, null));
+            return this;
+        }
+
+        public Builder addHttp2Context(final String path, final Http2SleekHandler http2SleekHandler, final Cors cors, final HttpMethod... allowedHttpMethods) {
+            useHttp2 = true;
+            final Set<HttpMethod> httpMethods = new HashSet<>(Set.of(allowedHttpMethods));
+            this.http2RouterHandler.handlers.put(path, new Http2Setup(http2SleekHandler, httpMethods, cors));
+            return this;
+        }
+
+        public Builder serveHttp2Files(final String rootDir, final Http2SleekHandler http2SleekHandler, final HttpMethod... allowedHttpMethods) {
+            useHttp2 = true;
+            final Set<HttpMethod> httpMethods = new HashSet<>(Set.of(allowedHttpMethods));
+            this.http2RouterHandler.fileHandlers.put(rootDir, new Http2Setup(http2SleekHandler, httpMethods, null));
+            return this;
+        }
+
+        public Builder serveHttp2Files(final String rootDir, final Http2SleekHandler http2SleekHandler, final Cors cors, final HttpMethod... allowedHttpMethods) {
+            useHttp2 = true;
+            final Set<HttpMethod> httpMethods = new HashSet<>(Set.of(allowedHttpMethods));
+            this.http2RouterHandler.fileHandlers.put(rootDir, new Http2Setup(http2SleekHandler, httpMethods, cors));
             return this;
         }
 

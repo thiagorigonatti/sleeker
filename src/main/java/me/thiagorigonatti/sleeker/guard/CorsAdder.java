@@ -8,7 +8,9 @@ package me.thiagorigonatti.sleeker.guard;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import me.thiagorigonatti.sleeker.core.HeaderAddeable;
+import org.jspecify.annotations.NonNull;
 
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class CorsAdder {
@@ -17,17 +19,27 @@ public class CorsAdder {
         throw new AssertionError("Instantiation of an utility class");
     }
 
-    public static void addCors(Cors cors, HeaderAddeable headerAddeable) {
+    public static void addCors(@NonNull final Cors cors, @NonNull final HeaderAddeable headerAddeable) {
 
-        String methods = cors.allowedMethods().stream().map(HttpMethod::name)
+        final Cors nonNullCors = Objects.requireNonNull(cors);
+
+        final HeaderAddeable nonNullHeaderAddeable = Objects.requireNonNull(headerAddeable);
+
+        final String methods = Objects.requireNonNull(nonNullCors.allowedMethods()).stream().map(HttpMethod::name)
                 .collect(Collectors.joining(", "));
 
-        String headers = String.join(", ", cors.allowedHttpHeaders());
+        final String headers = String.join(", ", Objects.requireNonNull(nonNullCors.allowedHttpHeaders()));
 
-        headerAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, cors.allowedOrigin());
-        headerAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_ALLOW_METHODS, methods);
-        headerAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_ALLOW_HEADERS, headers);
-        headerAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_ALLOW_CREDENTIALS, cors.allowCredentials().toString());
-        headerAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_MAX_AGE, cors.maxAge().toString());
+        nonNullHeaderAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN,
+                Objects.requireNonNull(nonNullCors.allowedOrigin()));
+
+        nonNullHeaderAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_ALLOW_METHODS, methods);
+        nonNullHeaderAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_ALLOW_HEADERS, headers);
+
+        nonNullHeaderAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                Objects.requireNonNull(nonNullCors.allowCredentials()).toString());
+
+        nonNullHeaderAddeable.addHeader(HttpHeaderNames.ACCESS_CONTROL_MAX_AGE,
+                Objects.requireNonNull(nonNullCors.maxAge()).toString());
     }
 }

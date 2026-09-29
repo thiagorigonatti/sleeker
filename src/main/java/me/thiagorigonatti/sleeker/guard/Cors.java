@@ -8,11 +8,14 @@ package me.thiagorigonatti.sleeker.guard;
 
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.util.AsciiString;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Set;
 
-public record Cors(String allowedOrigin, Set<HttpMethod> allowedMethods, Set<AsciiString> allowedHttpHeaders,
-                   Boolean allowCredentials, Long maxAge) {
+public record Cors(@NonNull String allowedOrigin,
+                   @NonNull Set<HttpMethod> allowedMethods,
+                   @NonNull Set<AsciiString> allowedHttpHeaders,
+                   @NonNull Boolean allowCredentials,
+                   @NonNull Long maxAge
+) {
 }
-
-

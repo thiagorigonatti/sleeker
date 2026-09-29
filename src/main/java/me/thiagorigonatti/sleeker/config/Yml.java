@@ -15,7 +15,7 @@ import java.util.Map;
 
 public class Yml {
 
-    public Map<String, Object> read(File settings)  {
+    public Map<String, Object> read(File settings) {
 
         Yaml yaml = new Yaml();
 
