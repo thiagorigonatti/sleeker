@@ -6,9 +6,12 @@
 public class Test {
     public static void main(String[] args) throws Exception {
 
-        // Creating instances of Http1 and Http2 handler classes.
-        final Http1ExampleHandler http1ExampleHandler = new Http1ExampleHandler();
-        final Http2ExampleHandler http2ExampleHandler = new Http2ExampleHandler();
+        // Creating instances of Http1 and Http2 api handler classes.
+        final Http1ExampleApiHandler http1ExampleApiHandler = new Http1ExampleApiHandler();
+        final Http2ExampleApiHandler http2ExampleApiHandler = new Http2ExampleApiHandler();
+
+        // Creating instances of Http1 file handler classes.
+        final Http1ExampleHlsHandler http1ExampleHlsHandler = new Http1ExampleHlsHandler();
 
         //Creating Cors instance with origin, allowed methods, allowed headers, sending cookies, and cache time.
         final Cors cors = new Cors("http://localhost:54321",
@@ -19,16 +22,17 @@ public class Test {
         new SleekerServer.Builder()
                 // Adds an HTTP context, with an endpoint, a handler that will process the request,
                 // and supported HTTP methods.
-                .addHttp1Context("/http1_get_post", http1ExampleHandler,
+                .addHttp1Context("/http1_get_post", http1ExampleApiHandler,
                         HttpMethod.GET,
+                        HttpMethod.valueOf("CUSTOM"),
                         HttpMethod.POST)
 
-                .addHttp1Context("/http1_put_patch_delete", http1ExampleHandler,
+                .addHttp1Context("/http1_put_patch_delete", http1ExampleApiHandler,
                         HttpMethod.PUT,
                         HttpMethod.PATCH,
                         HttpMethod.DELETE)
 
-                .addHttp1Context("/http1_head", http1ExampleHandler, HttpMethod.HEAD)
+                .addHttp1Context("/http1_head", http1ExampleApiHandler, HttpMethod.HEAD)
 
                 // Adds CORS for both http1 and http2
                 .withCors(cors)
@@ -36,8 +40,11 @@ public class Test {
                 // Configures SSL with cert file and private key.
                 .withSsl(Path.of("localhost-cert.pem"), Path.of("localhost-key.pem"))
 
-                .addHttp2Context("/http2_get", http2ExampleHandler, HttpMethod.GET)
-                .addHttp2Context("/http2_post", http2ExampleHandler, HttpMethod.POST)
+                .addHttp2Context("/http2_get", http2ExampleApiHandler, HttpMethod.GET)
+                .addHttp2Context("/http2_post", http2ExampleApiHandler, HttpMethod.POST)
+
+                .serveHttp1Files("/tmp/transformers_2007_1080p_br_remux_to_hls/", http1ExampleHlsHandler, HttpMethod.GET)
+                .serveHttp1Files("/tmp/hls-simple-player/", http1ExampleHlsHandler, HttpMethod.GET)
 
                 // Builds a SleekerServer object.
                 .build()
@@ -52,106 +59,54 @@ public class Test {
 ```
 ### HTTP1.1 HANDLER
 ```java
-public class Http1ExampleHandler extends Http1SleekHandler {
+public class Http1ExampleApiHandler extends Http1SleekHandler {
 
-    private static final Logger LOGGER = LogManager.getLogger(Http1ExampleHandler.class);
-    private final StringBuilder stringBuilder = new StringBuilder();
+    private static final Logger LOGGER = LogManager.getLogger(Http1ExampleApiHandler.class);
 
     @Override
     protected void handleGET(Http1Request http1Request, Http1Response http1Response) {
-
-        stringBuilder.setLength(0);
-
-        stringBuilder
-                .append("\r\n")
-                .append("--------HTTP/1.1 REQUEST--------")
-                .append("\r\n")
-                .append("ip_port: ").append(http1Request.remoteAddress().getHostString())
-                .append(":").append(http1Request.remoteAddress().getPort())
-                .append("\r\n")
-                .append("method: ").append(http1Request.method())
-                .append("\r\n")
-                .append("path: ").append(http1Request.path())
-                .append("\r\n");
-
-        for (Map.Entry<String, String> header : http1Request.headers()) {
-            stringBuilder.append(header.getKey()).append(": ").append(header.getValue())
-                    .append("\r\n");
-        }
 
         http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
         http1Response.setBody("Hello from HTTP/1.1");
         http1Response.reply(HttpResponseStatus.OK);
 
-        stringBuilder
-                .append(http1Request.body())
-                .append("\r\n")
-                .append("--------------------------------")
-                .append("\r\n");
-
-        LOGGER.info(stringBuilder);
+        Http1Utils.logRequest(http1Request, LOGGER);
     }
 
     @Override
-    protected void handlePOST(Http1Request http1Request, Http1Response http1Response) throws JsonProcessingException {
+    protected void handlePOST(Http1Request http1Request, Http1Response http1Response) {
 
         if (http1Request.body().isEmpty() || http1Request.body().isBlank()) {
 
-            throw new HttpSleekException.BaseBuilder<>()
-                    .contentType(ContentType.APPLICATION_JSON_UTF8)
+            throw new HttpSleekException.BaseBuilder<>().contentType(ContentType.APPLICATION_JSON_UTF8)
                     .httpResponseStatus(HttpResponseStatus.BAD_REQUEST)
                     .responseMessage(new ObjectMapper().writeValueAsString(Map.of("errorMessage", "Body cannot be empty or blank")))
                     .build();
-        }
-
-        stringBuilder.setLength(0);
-
-        stringBuilder
-                .append("\r\n")
-                .append("--------HTTP/1.1 REQUEST--------")
-                .append("\r\n")
-                .append("ip_port: ").append(http1Request.remoteAddress().getHostString())
-                .append(":").append(http1Request.remoteAddress().getPort())
-                .append("\r\n")
-                .append("method: ").append(http1Request.method())
-                .append("\r\n")
-                .append("path: ").append(http1Request.path())
-                .append("\r\n");
-
-        for (Map.Entry<String, String> header : http1Request.headers()) {
-            stringBuilder.append(header.getKey()).append(": ").append(header.getValue())
-                    .append("\r\n");
         }
 
         http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
         http1Response.setBody("Saved! (HTTP/1.1)");
         http1Response.reply(HttpResponseStatus.CREATED);
 
-        stringBuilder
-                .append(http1Request.body())
-                .append("\r\n")
-                .append("--------------------------------")
-                .append("\r\n");
-
-        LOGGER.info(stringBuilder);
+        Http1Utils.logRequest(http1Request, LOGGER);
     }
 }
 ```
 ### HTTP1.1 REQUEST
 ```md
-2025-10-16 21:07:37 [INFO ] [pool-2-thread-2] m.t.s.a.Http1ExampleHandler:
+2026-09-26 09:45:44 [INFO ] [pool-2-thread-2] m.t.s.a.Http1ExampleApiHandler:
 --------HTTP/1.1 REQUEST--------
-ip_port: 127.0.0.1:38010
+ip_port: 127.0.0.1:43542
 method: POST
 path: /http1_get_post
+Postman-Token: c84465e3-48aa-4337-afba-9f0739627608
 Content-Type: application/json
-User-Agent: PostmanRuntime/7.48.0
-Accept: */*
-Postman-Token: 88ac587d-fe03-4fc3-bca1-e5a1e10ef087
+Content-Length: 37
 Host: localhost:8080
+User-Agent: PostmanRuntime/2.6.0
+Accept: */*
 Accept-Encoding: gzip, deflate, br
 Connection: keep-alive
-Content-Length: 37
 {
 "id": "abc",
 "level": 123
@@ -160,48 +115,22 @@ Content-Length: 37
 ```
 ### HTTP2 HANDLER
 ```java
-public class Http2ExampleHandler extends Http2SleekHandler {
+public class Http2ExampleApiHandler extends Http2SleekHandler {
 
-    private static final Logger LOGGER = LogManager.getLogger(Http2ExampleHandler.class);
-    private final StringBuilder stringBuilder = new StringBuilder();
+    private static final Logger LOGGER = LogManager.getLogger(Http2ExampleApiHandler.class);
 
     @Override
     protected void handleGET(Http2Request http2Request, Http2Response http2Response) {
-
-        stringBuilder.setLength(0);
-
-        stringBuilder
-                .append("\r\n")
-                .append("--------HTTP/2 REQUEST--------")
-                .append("\r\n")
-                .append("ip_port: ").append(http2Request.remoteAddress().getHostString())
-                .append(":").append(http2Request.remoteAddress().getPort())
-                .append("\r\n")
-                .append("method: ").append(http2Request.method())
-                .append("\r\n")
-                .append("path: ").append(http2Request.path())
-                .append("\r\n");
-
-        for (Map.Entry<CharSequence, CharSequence> header : http2Request.headers()) {
-            stringBuilder.append(header.getKey()).append(": ").append(header.getValue())
-                    .append("\r\n");
-        }
 
         http2Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
         http2Response.setBody("Hello from HTTP/2");
         http2Response.reply(HttpResponseStatus.OK);
 
-        stringBuilder
-                .append(http2Request.body())
-                .append("\r\n")
-                .append("--------------------------------")
-                .append("\r\n");
-
-        LOGGER.info(stringBuilder);
+        Http2Utils.logRequest(http2Request, LOGGER);
     }
 
     @Override
-    protected void handlePOST(Http2Request http2Request, Http2Response http2Response) throws JsonProcessingException {
+    protected void handlePOST(Http2Request http2Request, Http2Response http2Response) {
 
         if (http2Request.body().isEmpty() || http2Request.body().isBlank()) {
 
@@ -212,54 +141,29 @@ public class Http2ExampleHandler extends Http2SleekHandler {
                     .build();
         }
 
-        stringBuilder.setLength(0);
-
-        stringBuilder
-                .append("\r\n")
-                .append("--------HTTP/2 REQUEST--------")
-                .append("\r\n")
-                .append("ip_port: ").append(http2Request.remoteAddress().getHostString())
-                .append(":").append(http2Request.remoteAddress().getPort())
-                .append("\r\n")
-                .append("method: ").append(http2Request.method())
-                .append("\r\n")
-                .append("path: ").append(http2Request.path())
-                .append("\r\n");
-
-        for (Map.Entry<CharSequence, CharSequence> header : http2Request.headers()) {
-            stringBuilder.append(header.getKey()).append(": ").append(header.getValue())
-                    .append("\r\n");
-        }
-
         http2Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
         http2Response.setBody("Saved! (HTTP/2)");
         http2Response.reply(HttpResponseStatus.CREATED);
 
-        stringBuilder
-                .append(http2Request.body())
-                .append("\r\n")
-                .append("--------------------------------")
-                .append("\r\n");
-
-        LOGGER.info(stringBuilder);
+        Http2Utils.logRequest(http2Request, LOGGER);
     }
 }
 ```
 ### HTTP2 REQUEST
 ```md
-2025-10-16 21:08:21 [INFO ] [pool-2-thread-2] m.t.s.a.Http2ExampleHandler:
+2026-09-26 09:47:01 [INFO ] [pool-2-thread-3] m.t.s.a.Http2ExampleApiHandler:
 --------HTTP/2 REQUEST--------
-ip_port: 127.0.0.1:51564
+ip_port: 127.0.0.1:49096
 method: POST
 path: /http2_post
 :path: /http2_post
 :method: POST
 :authority: localhost:8080
 :scheme: https
+postman-token: d7e16a96-4265-4bf3-a4e2-e5383e92246b
 content-type: application/json
-user-agent: PostmanRuntime/7.48.0
+user-agent: PostmanRuntime/2.6.0
 accept: */*
-postman-token: 21a37fed-2750-4b09-941d-49d47a9eeb6f
 accept-encoding: gzip, deflate, br
 content-length: 37
 {

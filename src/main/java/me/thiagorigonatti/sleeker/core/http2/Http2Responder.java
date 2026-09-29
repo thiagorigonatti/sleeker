@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
+ * Copyright (c) 2026. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
  * and is available under Apache License Version 2.0, January 2004 http://www.apache.org/licenses/
  */
 
@@ -12,8 +12,6 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http2.*;
 import io.netty.util.CharsetUtil;
-import me.thiagorigonatti.sleeker.guard.Cors;
-import me.thiagorigonatti.sleeker.guard.CorsAdder;
 import me.thiagorigonatti.sleeker.util.ContentType;
 
 public class Http2Responder {

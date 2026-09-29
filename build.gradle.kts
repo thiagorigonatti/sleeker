@@ -1,13 +1,13 @@
 plugins {
     id("java")
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradleup.shadow") version "9.4.2"
     id("com.google.osdetector") version "1.7.3"
 }
 
 group = "me.thiagorigonatti"
-version = "0.0.10"
+version = "0.0.15"
 description =
-    "A lightweight sub-millisecond p99 latency ultra high-performance non-blocking I/O io_uring and unix-domain-sockets compatible HTTP1/2 server module with easy TLS integration support."
+    "A high-throughput sub-millisecond p99 latency ultra high-performance reactive non-blocking I/O io_uring and unix-domain-sockets compatible HTTP1/2/3 server module with easy TLS integration support."
 repositories {
     mavenCentral()
 }
@@ -15,24 +15,28 @@ repositories {
 val os = the<com.google.gradle.osdetector.OsDetector>()
 
 dependencies {
-    implementation("io.netty:netty-all:4.2.6.Final")
-    implementation("io.netty:netty-tcnative-boringssl-static:2.0.73.Final:${os.classifier}")
 
-    implementation("org.apache.logging.log4j:log4j-api:2.25.2")
-    implementation("org.apache.logging.log4j:log4j-core:2.25.2")
+    implementation("io.netty:netty-codec-http2:4.2.18.Final")
 
-    implementation("org.bouncycastle:bcprov-jdk18on:1.82")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.82")
-    implementation("org.bouncycastle:bctls-jdk18on:1.82")
+    runtimeOnly("io.netty:netty-tcnative-boringssl-static:2.0.84.Final:linux-x86_64")
 
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.0")
+    implementation("io.netty:netty-transport-native-io_uring:4.2.18.Final:linux-x86_64")
+    implementation("io.netty:netty-transport-native-epoll:4.2.18.Final:linux-x86_64")
+    implementation("io.netty:netty-transport-native-kqueue:4.2.18.Final:osx-x86_64")
 
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
+    implementation("org.apache.logging.log4j:log4j-api:2.26.1")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:2.26.1")
 
-    implementation("jakarta.validation:jakarta.validation-api:3.1.1")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.3")
+    implementation("tools.jackson.core:jackson-databind:3.2.3")
 
-    testImplementation("org.postgresql:r2dbc-postgresql:1.0.7.RELEASE")
+    //implementation("jakarta.validation:jakarta.validation-api:3.1.1")
+
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    testImplementation("org.postgresql:r2dbc-postgresql:1.1.3.RELEASE")
     testImplementation("io.r2dbc:r2dbc-spi:1.0.0.RELEASE")
     testImplementation("io.r2dbc:r2dbc-pool:1.0.2.RELEASE")
 }
@@ -58,6 +62,16 @@ tasks.shadowJar {
 
 tasks.withType<Jar> {
     manifest.attributes["Main-Class"] = "me.thiagorigonatti.sleeker.aaa_dev_test.Test"
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(25)
 }
 
 tasks.test {

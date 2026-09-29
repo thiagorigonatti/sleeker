@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
+ * Copyright (c) 2026. This project is fully authored by Thiago Rigonatti (https://github.com/thiagorigonatti)
  * and is available under Apache License Version 2.0, January 2004 http://www.apache.org/licenses/
  */
 
@@ -24,6 +24,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +54,7 @@ public class Http2RouterHandler extends SimpleChannelInboundHandler<Http2Frame> 
     }
 
     public final Map<String, Http2Setup> handlers = new HashMap<>();
+    public final Map<String, Http2Setup> fileHandlers = new HashMap<>();
     private final Map<String, Http2HeaderHolder> http2RequestMap = new ConcurrentHashMap<>();
 
     @Override
@@ -85,6 +88,13 @@ public class Http2RouterHandler extends SimpleChannelInboundHandler<Http2Frame> 
             } else {
                 ctx.close();
             }
+        } else {
+            ctx.close();
+            try {
+                throw cause;
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -103,17 +113,25 @@ public class Http2RouterHandler extends SimpleChannelInboundHandler<Http2Frame> 
                 ? http2HeadersFrame.stream()
                 : ((Http2DataFrame) http2Frame).stream();
 
+        final Http2Response http2Response = new Http2Response(ctx, stream, HttpMethod.valueOf(headers.method().toString()));
+
+        if (setup.cors() != null) {
+            setup.httpMethodList().add(HttpMethod.OPTIONS);
+            CorsAdder.addCors(setup.cors(), http2Response);
+
+        } else if (this.isCorsEnabled()) {
+            CorsAdder.addCors(this.getCors(), http2Response);
+        }
+
+        if (!setup.httpMethodList().contains(HttpMethod.valueOf(headers.method().toString()))) {
+            return () -> Http2Responder.reply(ctx, headers, stream, HttpResponseStatus.METHOD_NOT_ALLOWED);
+        }
+
         final Http2Request http2Request = new Http2Request(
                 (InetSocketAddress) ctx.channel().localAddress(),
                 (InetSocketAddress) ctx.channel().remoteAddress(),
                 headers, body, stream, headers.path().toString(),
                 HttpMethod.valueOf(headers.method().toString()));
-
-        final Http2Response http2Response = new Http2Response(ctx, stream, HttpMethod.valueOf(headers.method().toString()));
-
-        if (this.isCorsEnabled()) {
-            CorsAdder.addCors(this.getCors(), http2Response);
-        }
 
         return switch (headers.method().toString()) {
             case "GET" -> () -> toRun(ctx, () -> setup.http2SleekHandler().handleGET(http2Request, http2Response));
@@ -123,16 +141,31 @@ public class Http2RouterHandler extends SimpleChannelInboundHandler<Http2Frame> 
             case "DELETE" ->
                     () -> toRun(ctx, () -> setup.http2SleekHandler().handleDELETE(http2Request, http2Response));
             case "HEAD" -> () -> toRun(ctx, () -> setup.http2SleekHandler().handleHEAD(http2Request, http2Response));
+
             case "OPTIONS" -> () -> toRun(ctx, () -> {
-                if (this.isCorsEnabled()) {
+                if (setup.cors() != null || this.isCorsEnabled()) {
                     http2Response.reply(HttpResponseStatus.NO_CONTENT);
-                } else setup.http2SleekHandler().handleOPTIONS(http2Request, http2Response);
+                } else {
+                    setup.http2SleekHandler().handleOPTIONS(http2Request, http2Response);
+                }
             });
+
             case "TRACE" -> () -> toRun(ctx, () -> setup.http2SleekHandler().handleTRACE(http2Request, http2Response));
             case "CONNECT" ->
                     () -> toRun(ctx, () -> setup.http2SleekHandler().handleCONNECT(http2Request, http2Response));
+
             default -> () -> Http2Responder.reply(ctx, headers, stream, HttpResponseStatus.METHOD_NOT_ALLOWED);
         };
+    }
+
+    private void performEnd(ChannelHandlerContext ctx, Http2Headers headers, Http2Setup http2Setup,
+                            Http2HeaderHolder context, Http2DataFrame dataFrame, String id) {
+
+        SleekerServer.EXECUTOR_SERVICE.execute(getTask(ctx, http2Setup, headers,
+                context.body().toString(CharsetUtil.UTF_8), dataFrame));
+
+        context.body().release();
+        http2RequestMap.remove(id);
     }
 
 
@@ -144,7 +177,17 @@ public class Http2RouterHandler extends SimpleChannelInboundHandler<Http2Frame> 
             String id = ctx.channel().id().asShortText() + "_" + headersFrame.stream().id();
 
             String path = headersFrame.headers().path().toString();
+
             Http2Setup http2Setup = handlers.get(path);
+
+            if (http2Setup == null) {
+                for (String s : fileHandlers.keySet()) {
+                    if (path.startsWith(s) && Files.exists(Path.of(path))) {
+                        http2Setup = fileHandlers.get(s);
+                        break;
+                    }
+                }
+            }
 
             if (http2Setup == null) {
                 SleekerServer.EXECUTOR_SERVICE.execute(() -> Http2Responder
@@ -153,12 +196,7 @@ public class Http2RouterHandler extends SimpleChannelInboundHandler<Http2Frame> 
             }
 
             if (headersFrame.isEndStream()) {
-                if (http2Setup.httpMethodList().contains(HttpMethod.valueOf(headersFrame.headers().method().toString()))) {
-                    SleekerServer.EXECUTOR_SERVICE.execute(getTask(ctx, http2Setup, headersFrame.headers(), "", headersFrame));
-                } else {
-                    SleekerServer.EXECUTOR_SERVICE.execute(() ->
-                            Http2Responder.reply(ctx, headersFrame.headers(), headersFrame.stream(), HttpResponseStatus.METHOD_NOT_ALLOWED));
-                }
+                SleekerServer.EXECUTOR_SERVICE.execute(getTask(ctx, http2Setup, headersFrame.headers(), "", headersFrame));
             } else {
                 ByteBuf body = ctx.alloc().buffer();
                 http2RequestMap.put(id, new Http2HeaderHolder(headersFrame.headers(), body));
@@ -173,21 +211,24 @@ public class Http2RouterHandler extends SimpleChannelInboundHandler<Http2Frame> 
             }
 
             context.body().writeBytes(dataFrame.content());
-
-            String body = context.body().toString(CharsetUtil.UTF_8);
             Http2Headers headers = context.headers();
-            Http2Setup http2Setup = handlers.get(headers.path().toString());
 
-            if (dataFrame.isEndStream()) {
-                if (http2Setup.httpMethodList().contains(HttpMethod.valueOf(headers.method().toString()))) {
-                    SleekerServer.EXECUTOR_SERVICE.execute(getTask(ctx, http2Setup, headers, body, dataFrame));
+            if (handlers.get(headers.path().toString()) != null) {
+                Http2Setup http2Setup = handlers.get(headers.path().toString());
 
-                } else {
-                    SleekerServer.EXECUTOR_SERVICE.execute(() ->
-                            Http2Responder.reply(ctx, headers, dataFrame.stream(), HttpResponseStatus.METHOD_NOT_ALLOWED));
+                if (dataFrame.isEndStream())
+                    performEnd(ctx, headers, http2Setup, context, dataFrame, id);
+
+            } else {
+                for (String s : fileHandlers.keySet()) {
+                    if (headers.path().toString().startsWith(s) && Files.exists(Path.of(headers.path().toString()))) {
+                        Http2Setup http2FileSetup = fileHandlers.get(s);
+
+                        if (dataFrame.isEndStream())
+                            performEnd(ctx, headers, http2FileSetup, context, dataFrame, id);
+                        break;
+                    }
                 }
-                context.body().release();
-                http2RequestMap.remove(id);
             }
 
         } else if (msg instanceof Http2ResetFrame resetFrame) {

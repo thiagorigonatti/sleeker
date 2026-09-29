@@ -7,31 +7,30 @@ package me.thiagorigonatti.sleeker.io;
 
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.uring.*;
+import io.netty.channel.nio.NioIoHandler;
+import io.netty.channel.socket.nio.NioServerDomainSocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 
-public class IoUringIo implements SleekIo {
+public class NioIo implements SleekIo {
 
-    private final IoUringIoHandlerConfig config;
     private final boolean unixDomainSocket;
 
-    public IoUringIo(IoUringIoHandlerConfig config, boolean unixDomainSocket) throws Exception {
-        if (!IoUring.isAvailable()) throw new Exception(IoUring.unavailabilityCause());
-        this.config = config;
+    public NioIo(boolean unixDomainSocket) {
         this.unixDomainSocket = unixDomainSocket;
     }
 
     @Override
     public Class<? extends ServerChannel> getServerChannelClass() {
-        return unixDomainSocket ? IoUringServerDomainSocketChannel.class : IoUringServerSocketChannel.class;
+        return this.unixDomainSocket ? NioServerDomainSocketChannel.class : NioServerSocketChannel.class;
     }
 
     @Override
     public IoHandlerFactory getIoHandlerFactory() {
-        return IoUringIoHandler.newFactory(this.config);
+        return NioIoHandler.newFactory();
     }
 
     @Override
     public boolean isAvailable() {
-        return IoUring.isAvailable();
+        return true;
     }
 }

@@ -7,31 +7,32 @@ package me.thiagorigonatti.sleeker.io;
 
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.uring.*;
+import io.netty.channel.kqueue.KQueue;
+import io.netty.channel.kqueue.KQueueIoHandler;
+import io.netty.channel.kqueue.KQueueServerDomainSocketChannel;
+import io.netty.channel.kqueue.KQueueServerSocketChannel;
 
-public class IoUringIo implements SleekIo {
+public class KQueueIo implements SleekIo {
 
-    private final IoUringIoHandlerConfig config;
     private final boolean unixDomainSocket;
 
-    public IoUringIo(IoUringIoHandlerConfig config, boolean unixDomainSocket) throws Exception {
-        if (!IoUring.isAvailable()) throw new Exception(IoUring.unavailabilityCause());
-        this.config = config;
+    public KQueueIo(boolean unixDomainSocket) throws Exception {
+        if (!KQueue.isAvailable()) throw new Exception(KQueue.unavailabilityCause());
         this.unixDomainSocket = unixDomainSocket;
     }
 
     @Override
     public Class<? extends ServerChannel> getServerChannelClass() {
-        return unixDomainSocket ? IoUringServerDomainSocketChannel.class : IoUringServerSocketChannel.class;
+        return this.unixDomainSocket ? KQueueServerDomainSocketChannel.class : KQueueServerSocketChannel.class;
     }
 
     @Override
     public IoHandlerFactory getIoHandlerFactory() {
-        return IoUringIoHandler.newFactory(this.config);
+        return KQueueIoHandler.newFactory();
     }
 
     @Override
     public boolean isAvailable() {
-        return IoUring.isAvailable();
+        return KQueue.isAvailable();
     }
 }

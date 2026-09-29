@@ -1,8 +1,22 @@
 sleeker:
   server:
-    http2_priority: false
+    http2Priority: true
+
+    bossThreads: 1
+    workerThreads: 2
+
+    http1:
+      chunkSize: 8192
+
+    http2:
+      chunkSize: 8192
 
     io:
-      io_uring:
-        ring_size: 128
-        cq_size: 4096
+      ioUring:
+        ringSize: 4096
+        cqSize: 8192
+        maxBoundedWorker: 0
+        maxUnboundedWorker: 0
+
+      epoll:
+        maxEvents: 4096
