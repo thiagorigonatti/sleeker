@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Java-25-orange?logo=openjdk&logoColor=white" alt="Java 25">
   <img src="https://img.shields.io/badge/Netty-4.2-blue" alt="Netty">
   <img src="https://img.shields.io/badge/HTTP-1.1%20%7C%202-success" alt="HTTP/1.1 and HTTP/2">
-  <img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="AGPL-3.0 License">
+  <img src="https://img.shields.io/badge/License-Apache%202.0-blue" alt="Apache 2.0 License">
 </p>
 
 ---

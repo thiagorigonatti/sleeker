@@ -24,7 +24,7 @@ dependencies {
 
     api("io.netty:netty-codec-http2:4.2.20.Final")
 
-    runtimeOnly("io.netty:netty-tcnative-boringssl-static:2.0.84.Final:linux-x86_64")
+    runtimeOnly("io.netty:netty-tcnative-boringssl-static:2.0.84.Final:${os.classifier}")
 
     implementation("io.netty:netty-transport-native-io_uring:4.2.20.Final:linux-x86_64")
     implementation("io.netty:netty-transport-native-epoll:4.2.20.Final:linux-x86_64")
@@ -40,7 +40,7 @@ dependencies {
 
 tasks.shadowJar {
     archiveClassifier.set("all")
-    archiveFileName.set("app.jar")
+    archiveFileName.set("${archiveBaseName.get()}-${version}-${archiveClassifier.get()}-${os.classifier}.jar")
 }
 
 java {
