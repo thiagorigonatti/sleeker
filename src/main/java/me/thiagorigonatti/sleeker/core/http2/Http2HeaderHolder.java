@@ -8,5 +8,14 @@ package me.thiagorigonatti.sleeker.core.http2;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http2.Http2Headers;
 
-public record Http2HeaderHolder(Http2Headers headers, ByteBuf body) {
+import java.util.List;
+import java.util.Map;
+
+record Http2HeaderHolder(
+        Http2Headers headers,
+        Http2Setup http2Setup,
+        ByteBuf body,
+        String path,
+        Map<String, List<String>> queryParams
+) {
 }

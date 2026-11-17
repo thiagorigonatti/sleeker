@@ -32,7 +32,7 @@ public class AsciiArt {
     public static void printLogo(Consumer<String> consumer) {
 
         List<String> logoLines = List.of(
-                colorTranslate("&0    &3__&b___&2__&a__.&e__                 &b__          &fv0.0.15  \033[0m"),
+                colorTranslate("&0    &3__&b___&2__&a__.&e__                 &b__          &fv0.0.25  \033[0m"),
                 colorTranslate("&0   &3/   &b__&2__&a_/|  &e|   &5__&d__   &3__&b__ |  &a| _&e_ &c__&4__&5__&d__&9__&b_&0   \033[0m"),
                 colorTranslate("&0   &b\\&3_&b__&2__  &a\\ &e|  | &5_/ &d__ &9\\&3_/ &b__ \\|  &a|/ &e/&c/ &4__ &5\\&d_  &9_&b_ \\  \033[0m"),
                 colorTranslate("&b   /        &e\\|  &c|_&5\\  &d_&9__&3/&b\\  ___/&a|    &e<&c\\  &4_&5__&d/|  &b| \\/  \033[0m"),

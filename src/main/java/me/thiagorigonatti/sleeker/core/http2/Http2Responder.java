@@ -44,7 +44,6 @@ public class Http2Responder {
 
     public static void replyNotImplemented(Http2Request http2Request, Http2Response http2Response) {
         http2Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
-        http2Response.setBody(HttpResponseStatus.NOT_IMPLEMENTED.reasonPhrase());
-        http2Response.reply(HttpResponseStatus.NOT_IMPLEMENTED);
+        http2Response.reply(HttpResponseStatus.NOT_IMPLEMENTED.reasonPhrase(), HttpResponseStatus.NOT_IMPLEMENTED);
     }
 }

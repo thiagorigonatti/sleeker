@@ -4,7 +4,7 @@
     <option name="show" value="PROJECT_FILES" />
     <option name="description" value="A high-throughput sub-millisecond p99 latency ultra high-performance reactive non-blocking I/O io_uring and unix-domain-sockets compatible HTTP1/2/3 server module with easy TLS integration support." />
     <option name="applicationTheme" value="2024-icons" />
-    <option name="iconsTheme" value="classic" />
+    <option name="iconsTheme" value="material" />
     <option name="button1Title" value="🗂️ Source Code" />
     <option name="button1Url" value="https://github.com/thiagorigonatti/sleeker" />
     <option name="button2Title" value="📦 Download" />
