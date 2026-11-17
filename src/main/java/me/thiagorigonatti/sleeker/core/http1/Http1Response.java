@@ -14,14 +14,31 @@ import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.CharsetUtil;
 import me.thiagorigonatti.sleeker.core.Config;
 import me.thiagorigonatti.sleeker.core.HeaderAddeable;
+import me.thiagorigonatti.sleeker.exception.HttpSleekException;
+import me.thiagorigonatti.sleeker.util.ContentType;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 public class Http1Response implements HeaderAddeable {
 
+    private boolean committed;
+
+    public boolean isCommitted() {
+        return this.committed;
+    }
+
+    public void commit() {
+        if (this.committed) throw new IllegalStateException("HTTP response has already been committed");
+        this.committed = true;
+    }
+
     private final ChannelHandlerContext ctx;
-    private ByteBuf buf;
     private final HttpVersion httpVersion;
     private final HttpHeaders httpHeaders;
 
@@ -35,56 +52,174 @@ public class Http1Response implements HeaderAddeable {
         this.httpHeaders = new DefaultHttpHeaders();
     }
 
-    public void replyFile(final Path path, final long position, final long count, final HttpResponseStatus status) {
+    public boolean replyFile(final Path path, final HttpResponseStatus status) {
 
-        if (this.ctx.pipeline().get(SslHandler.class) != null)
+        if (this.ctx.pipeline().get(SslHandler.class) != null) {
             throw new RuntimeException("Attempt to serve zero-copy file while using TLS.");
+        }
 
-        final DefaultHttpResponse defaultHttpResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
-        defaultHttpResponse.headers().set(HttpHeaderNames.CONTENT_LENGTH, count);
-        defaultHttpResponse.headers().add(this.httpHeaders);
-        final DefaultFileRegion region = new DefaultFileRegion(path.toFile(), position, count);
+        final FileChannel fileChannel;
 
-        this.ctx.write(defaultHttpResponse);
-        this.ctx.write(region);
+        try {
+            fileChannel = FileChannel.open(path, StandardOpenOption.READ);
+
+        } catch (final NoSuchFileException exception) {
+            throw new HttpSleekException.BaseBuilder<>().responseMessage(HttpResponseStatus.NOT_FOUND.reasonPhrase()).contentType(ContentType.TEXT_PLAIN_UTF8).httpResponseStatus(HttpResponseStatus.NOT_FOUND).build();
+
+        } catch (final IOException exception) {
+            throw new HttpSleekException.BaseBuilder<>().responseMessage(HttpResponseStatus.INTERNAL_SERVER_ERROR.reasonPhrase()).contentType(ContentType.TEXT_PLAIN_UTF8).httpResponseStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        final DefaultFileRegion region;
+
+        try {
+            final long fileSize = fileChannel.size();
+
+            region = new DefaultFileRegion(fileChannel, 0, fileSize);
+
+        } catch (final IOException exception) {
+
+            try {
+                fileChannel.close();
+            } catch (final IOException ignored) {
+            }
+
+            throw new HttpSleekException.BaseBuilder<>()
+                    .responseMessage(HttpResponseStatus.INTERNAL_SERVER_ERROR.reasonPhrase())
+                    .contentType(ContentType.TEXT_PLAIN_UTF8)
+                    .httpResponseStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR)
+                    .build();
+        }
+
+        try {
+            commit();
+        } catch (final RuntimeException exception) {
+            region.release();
+            throw exception;
+        }
+
+        final DefaultHttpResponse response = new DefaultHttpResponse(this.httpVersion, status);
+
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, region.count());
+
+        response.headers().add(this.httpHeaders);
+
+        try {
+            this.ctx.write(response);
+            this.ctx.write(region);
+        } catch (final RuntimeException exception) {
+            region.release();
+            throw exception;
+        }
+
         this.ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+
+        return isCommitted();
     }
 
-    public void replyFileChunked(final Path path, final long position, final long count, final HttpResponseStatus status) throws Exception {
+    public boolean replyFileChunked(final Path path, final HttpResponseStatus status) {
 
-        if (this.ctx.pipeline().get(SslHandler.class) == null)
-            throw new RuntimeException("Attempt to serve chunked file without TLS.");
+        if (this.ctx.pipeline().get(SslHandler.class) == null) {
+            throw new IllegalStateException("Attempt to serve chunked file without TLS.");
+        }
 
-        final DefaultHttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
-        response.headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
-        response.headers().add(this.httpHeaders);
-        final RandomAccessFile raf = new RandomAccessFile(path.toFile(), "r");
-        final ChunkedFile chunkedFile = new ChunkedFile(raf, position, count, Config.getHttp1ChunkSize());
+        final int chunkSize = Config.getHttp1ChunkSize();
+
+        if (chunkSize <= 0) {
+            throw new IllegalStateException("HTTP/1 chunk size must be greater than zero");
+        }
+
+        final RandomAccessFile raf;
+
+        try {
+            raf = new RandomAccessFile(path.toFile(), "r");
+
+        } catch (final FileNotFoundException exception) {
+            throw new HttpSleekException.BaseBuilder<>().responseMessage(HttpResponseStatus.NOT_FOUND.reasonPhrase()).contentType(ContentType.TEXT_PLAIN_UTF8).httpResponseStatus(HttpResponseStatus.NOT_FOUND).build();
+        }
+
+        final ChunkedFile chunkedFile;
+
+        try {
+            chunkedFile = new ChunkedFile(raf, 0, raf.length(), chunkSize);
+
+        } catch (final IOException | RuntimeException exception) {
+
+            close(raf);
+
+            throw new HttpSleekException.BaseBuilder<>().responseMessage(HttpResponseStatus.INTERNAL_SERVER_ERROR.reasonPhrase()).contentType(ContentType.TEXT_PLAIN_UTF8).httpResponseStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        try {
+            commit();
+
+        } catch (final RuntimeException exception) {
+
+            close(chunkedFile);
+
+            throw exception;
+        }
+
+        final DefaultHttpResponse response = new DefaultHttpResponse(this.httpVersion, status);
+
+        response.headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED).add(this.httpHeaders);
+
         final HttpChunkedInput chunkedInput = new HttpChunkedInput(chunkedFile);
 
-        this.ctx.write(response);
-        this.ctx.writeAndFlush(chunkedInput);
+        try {
+            this.ctx.write(response);
+            this.ctx.writeAndFlush(chunkedInput);
+
+        } catch (final RuntimeException exception) {
+
+            // The writing wasn't even delivered to the pipeline as normal, so the resource remains our responsibility.
+            close(chunkedFile);
+
+            throw exception;
+        }
+
+
+        // From this point on, ChunkedWriteHandler has ChunkedInput.
+        // It closes ChunkedInput both when the transfer is complete and when the write fails.
+        return isCommitted();
     }
 
-    public void setBody(final String body) {
-        if (this.buf == null) this.buf = this.ctx.alloc().buffer();
-        this.buf.writeCharSequence(body, CharsetUtil.UTF_8);
+    private static void close(final RandomAccessFile raf) {
+
+        try {
+            raf.close();
+        } catch (final IOException ignored) {
+        }
     }
+
+    private static void close(final ChunkedFile chunkedFile) {
+
+        try {
+            chunkedFile.close();
+        } catch (final Exception ignored) {
+        }
+    }
+
 
     public void addHeader(final CharSequence httpHeaderName, final CharSequence httpHeaderValue) {
         this.httpHeaders.add(httpHeaderName, httpHeaderValue);
     }
 
-    public void reply(final HttpResponseStatus httpResponseStatus) {
 
-        if (this.buf == null) {
-            this.buf = this.ctx.alloc().buffer(0);
-            this.buf.writeCharSequence("", CharsetUtil.UTF_8);
-        }
+    public boolean reply(final String body, final HttpResponseStatus httpResponseStatus) {
+        commit();
 
-        final FullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(this.httpVersion, httpResponseStatus, this.buf);
-        fullHttpResponse.headers().set(HttpHeaderNames.CONTENT_LENGTH, this.buf.readableBytes());
+        final ByteBuf buf = this.ctx.alloc().buffer();
+        buf.writeCharSequence(body, CharsetUtil.UTF_8);
+
+        final FullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus, buf);
+
+        if (httpResponseStatus != HttpResponseStatus.NO_CONTENT)
+            fullHttpResponse.headers().set(HttpHeaderNames.CONTENT_LENGTH, buf.readableBytes());
+
         fullHttpResponse.headers().add(this.httpHeaders);
         this.ctx.writeAndFlush(fullHttpResponse);
+
+        return isCommitted();
     }
 }

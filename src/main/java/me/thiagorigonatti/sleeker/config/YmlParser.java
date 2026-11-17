@@ -10,17 +10,17 @@ import java.util.Map;
 
 public class YmlParser {
 
-    private final Map<String, Object> toBeFilled = new HashMap<>();
+    public final Map<String, Object> toBeFilled = new HashMap<>();
 
     public Map<String, Object> getParsed() {
         return toBeFilled;
     }
 
-    public void parse(Map<?, ?> obj, String parentKey) {
+    public void parse(final Map<?, ?> obj, final String parentKey) {
 
-        for (Map.Entry<?, ?> entry : obj.entrySet()) {
+        for (final Map.Entry<?, ?> entry : obj.entrySet()) {
 
-            if (entry.getValue() != null && entry.getValue() instanceof Map<?, ?> map)
+            if (entry.getValue() != null && entry.getValue() instanceof final Map<?, ?> map)
 
                 parse(map, (parentKey == null ? "" : parentKey + ".") + entry.getKey());
 

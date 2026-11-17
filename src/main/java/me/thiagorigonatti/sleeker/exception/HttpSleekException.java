@@ -34,9 +34,9 @@ public class HttpSleekException extends RuntimeException {
     }
 
     public static class BaseBuilder<T extends BaseBuilder<T>> {
-        private HttpResponseStatus httpResponseStatus;
-        private String responseMessage;
-        private ContentType contentType;
+        private HttpResponseStatus httpResponseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+        private String responseMessage = httpResponseStatus.reasonPhrase();
+        private ContentType contentType = ContentType.TEXT_PLAIN_UTF8;
 
         public T httpResponseStatus(HttpResponseStatus httpResponseStatus) {
             this.httpResponseStatus = httpResponseStatus;

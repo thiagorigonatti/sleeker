@@ -7,29 +7,20 @@ package me.thiagorigonatti.sleeker.config;
 
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 
 public class Yml {
 
-    public Map<String, Object> read(File settings) {
+    public Map<String, Object> read(final InputStream inputStream) {
 
-        Yaml yaml = new Yaml();
+        final Yaml yaml = new Yaml();
 
-        try (InputStream inputStream = new FileInputStream(settings)) {
+        final Map<String, Object> obj = yaml.load(inputStream);
 
-            Map<String, Object> obj = yaml.load(inputStream);
+        final YmlParser BBYmlParser = new YmlParser();
+        BBYmlParser.parse(obj, null);
 
-            YmlParser BBYmlParser = new YmlParser();
-            BBYmlParser.parse(obj, null);
-
-            return BBYmlParser.getParsed();
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return BBYmlParser.getParsed();
     }
 }

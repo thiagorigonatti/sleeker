@@ -1,0 +1,36 @@
+sleeker:
+  server:
+    http2Priority: false
+    bossThreads: 1
+    workerThreads: 2
+
+    http1:
+      maxRequests: 2048
+      maxPipelineDepth: 1
+      chunkSize: 8192
+      headerTimeoutSeconds: 4
+      requestTimeoutSeconds: 4
+      responseIdleTimeoutSeconds: 10
+      connectionIdleTimeoutSeconds: 10
+      maxContentLength: 65535
+      maxConcurrentRequests: 128
+      maxConnections: 128
+      serialMaxPending: 8192
+      serialPauseAt: 4096
+      serialResumeAt: 2048
+
+    http2:
+      chunkSize: 8192
+      headerTimeoutSeconds: 10
+      requestTimeoutSeconds: 10
+      maxConcurrentStreams: 128
+
+    io:
+      ioUring:
+        ringSize: 4096
+        cqSize: 8192
+        maxBoundedWorker: 0
+        maxUnboundedWorker: 0
+
+      epoll:
+        maxEvents: 8192

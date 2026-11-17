@@ -1,174 +1,144 @@
-# SLEEKER v0.0.10
-![](assets/png/logo-v0.0.10.png)
+# Sleeker v0.0.25
 
-[TEST](TEST.md)
-```java
-public class Test {
-    public static void main(String[] args) throws Exception {
+<p align="center">
+  <img src="assets/png/logo-v0.0.25.png" alt="Sleeker Logo">
+</p>
 
-        // Creating instances of Http1 and Http2 api handler classes.
-        final Http1ExampleApiHandler http1ExampleApiHandler = new Http1ExampleApiHandler();
-        final Http2ExampleApiHandler http2ExampleApiHandler = new Http2ExampleApiHandler();
+<p align="center">
+  <strong>A high-performance HTTP/1.1 and HTTP/2 server library for modern Java.</strong>
+</p>
 
-        // Creating instances of Http1 file handler classes.
-        final Http1ExampleHlsHandler http1ExampleHlsHandler = new Http1ExampleHlsHandler();
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-25-orange?logo=openjdk&logoColor=white" alt="Java 25">
+  <img src="https://img.shields.io/badge/Netty-4.2-blue" alt="Netty">
+  <img src="https://img.shields.io/badge/HTTP-1.1%20%7C%202-success" alt="HTTP/1.1 and HTTP/2">
+  <img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="AGPL-3.0 License">
+</p>
 
-        //Creating Cors instance with origin, allowed methods, allowed headers, sending cookies, and cache time.
-        final Cors cors = new Cors("http://localhost:54321",
-                Set.of(HttpMethod.GET, HttpMethod.POST),
-                Set.of(HttpHeaderNames.AUTHORIZATION), true, 3600L);
+---
 
-        // Creates a builder object for SleekerServer.
-        new SleekerServer.Builder()
-                // Adds an HTTP context, with an endpoint, a handler that will process the request,
-                // and supported HTTP methods.
-                .addHttp1Context("/http1_get_post", http1ExampleApiHandler,
-                        HttpMethod.GET,
-                        HttpMethod.valueOf("CUSTOM"),
-                        HttpMethod.POST)
+## About Sleeker
 
-                .addHttp1Context("/http1_put_patch_delete", http1ExampleApiHandler,
-                        HttpMethod.PUT,
-                        HttpMethod.PATCH,
-                        HttpMethod.DELETE)
+Sleeker is a high-performance **HTTP/1.1 and HTTP/2 server library for Java 25**, built on [Netty](https://netty.io/).
 
-                .addHttp1Context("/http1_head", http1ExampleApiHandler, HttpMethod.HEAD)
+It combines non-blocking I/O, virtual threads, and native transports such as **io_uring, epoll, and kqueue**.
 
-                // Adds CORS for both http1 and http2
-                .withCors(cors)
+With TLS/ALPN, flexible routing, CORS, efficient file streaming, and configurable concurrency and timeouts, Sleeker is designed for responsive, scalable HTTP services.
 
-                // Configures SSL with cert file and private key.
-                .withSsl(Path.of("localhost-cert.pem"), Path.of("localhost-key.pem"))
+## Quick Start
 
-                .addHttp2Context("/http2_get", http2ExampleApiHandler, HttpMethod.GET)
-                .addHttp2Context("/http2_post", http2ExampleApiHandler, HttpMethod.POST)
+Get started with Sleeker by creating a request handler and configuring the HTTP server.
 
-                .serveHttp1Files("/tmp/transformers_2007_1080p_br_remux_to_hls/", http1ExampleHlsHandler, HttpMethod.GET)
-                .serveHttp1Files("/tmp/hls-simple-player/", http1ExampleHlsHandler, HttpMethod.GET)
+### 1. Create an HTTP/1.1 Handler
 
-                // Builds a SleekerServer object.
-                .build()
+Extend `Http1SleekHandler` to define how your application processes incoming requests.
 
-                // Starts the server with the address and port, as well as the type of I/O used.
-                .startServer(new InetSocketAddress("localhost", 8080), ServerIo.TYPE_IOURING);
-    }
-}
-```
-```md
-2025-09-29 10:00:01 [INFO ] [main] m.t.s.c.SleekerServer: Sleeker server running at: http://localhost:8080
-```
-### HTTP1.1 HANDLER
 ```java
 public class Http1ExampleApiHandler extends Http1SleekHandler {
 
-    private static final Logger LOGGER = LogManager.getLogger(Http1ExampleApiHandler.class);
-
     @Override
-    protected void handleGET(Http1Request http1Request, Http1Response http1Response) {
-
+    protected void handleGET(Http1Request http1Request, Http1Response http1Response) throws InterruptedException {
+        TimeUnit.MILLISECONDS.sleep(1);
         http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
-        http1Response.setBody("Hello from HTTP/1.1");
-        http1Response.reply(HttpResponseStatus.OK);
-
-        Http1Utils.logRequest(http1Request, LOGGER);
+        http1Response.reply("Hello from HTTP/1.1", HttpResponseStatus.OK);
     }
 
     @Override
     protected void handlePOST(Http1Request http1Request, Http1Response http1Response) {
-
-        if (http1Request.body().isEmpty() || http1Request.body().isBlank()) {
-
-            throw new HttpSleekException.BaseBuilder<>().contentType(ContentType.APPLICATION_JSON_UTF8)
-                    .httpResponseStatus(HttpResponseStatus.BAD_REQUEST)
-                    .responseMessage(new ObjectMapper().writeValueAsString(Map.of("errorMessage", "Body cannot be empty or blank")))
-                    .build();
-        }
-
         http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
-        http1Response.setBody("Saved! (HTTP/1.1)");
-        http1Response.reply(HttpResponseStatus.CREATED);
-
-        Http1Utils.logRequest(http1Request, LOGGER);
+        http1Response.reply("Saved! (HTTP/1.1)", HttpResponseStatus.CREATED);
     }
 }
 ```
-### HTTP1.1 REQUEST
-```md
-2026-09-26 09:45:44 [INFO ] [pool-2-thread-2] m.t.s.a.Http1ExampleApiHandler:
---------HTTP/1.1 REQUEST--------
-ip_port: 127.0.0.1:43542
-method: POST
-path: /http1_get_post
-Postman-Token: c84465e3-48aa-4337-afba-9f0739627608
-Content-Type: application/json
-Content-Length: 37
-Host: localhost:8080
-User-Agent: PostmanRuntime/2.6.0
-Accept: */*
-Accept-Encoding: gzip, deflate, br
-Connection: keep-alive
-{
-"id": "abc",
-"level": 123
-}
---------------------------------
-```
-### HTTP2 HANDLER
+
+### 2. Start the Server
+
+Configure TLS, register your routes, and select the preferred I/O transport.
+
 ```java
-public class Http2ExampleApiHandler extends Http2SleekHandler {
+public class Application {
 
-    private static final Logger LOGGER = LogManager.getLogger(Http2ExampleApiHandler.class);
+    static void main() throws Exception {
 
-    @Override
-    protected void handleGET(Http2Request http2Request, Http2Response http2Response) {
-
-        http2Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
-        http2Response.setBody("Hello from HTTP/2");
-        http2Response.reply(HttpResponseStatus.OK);
-
-        Http2Utils.logRequest(http2Request, LOGGER);
-    }
-
-    @Override
-    protected void handlePOST(Http2Request http2Request, Http2Response http2Response) {
-
-        if (http2Request.body().isEmpty() || http2Request.body().isBlank()) {
-
-            throw new HttpSleekException.BaseBuilder<>()
-                    .contentType(ContentType.APPLICATION_JSON_UTF8)
-                    .httpResponseStatus(HttpResponseStatus.BAD_REQUEST)
-                    .responseMessage(new ObjectMapper().writeValueAsString(Map.of("errorMessage", "Body cannot be empty or blank")))
-                    .build();
-        }
-
-        http2Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
-        http2Response.setBody("Saved! (HTTP/2)");
-        http2Response.reply(HttpResponseStatus.CREATED);
-
-        Http2Utils.logRequest(http2Request, LOGGER);
+        new SleekerServer.Builder()
+                .withSsl(Path.of("/tls/localhost-cert.pem"), Path.of("/tls/localhost-key.pem"))
+                .addHttp1Context("/http1_get_post", new Http1ExampleApiHandler(), HttpMethod.GET, HttpMethod.POST)
+                .build()
+                .startServer(new InetSocketAddress("0.0.0.0", 8080), ServerIo.TYPE_EPOLL);
     }
 }
 ```
-### HTTP2 REQUEST
-```md
-2026-09-26 09:47:01 [INFO ] [pool-2-thread-3] m.t.s.a.Http2ExampleApiHandler:
---------HTTP/2 REQUEST--------
-ip_port: 127.0.0.1:49096
-method: POST
-path: /http2_post
-:path: /http2_post
-:method: POST
-:authority: localhost:8080
-:scheme: https
-postman-token: d7e16a96-4265-4bf3-a4e2-e5383e92246b
-content-type: application/json
-user-agent: PostmanRuntime/2.6.0
-accept: */*
-accept-encoding: gzip, deflate, br
-content-length: 37
-{
-"id": "abc",
-"level": 123
-}
---------------------------------
+
+---
+
+## Performance Benchmarks
+
+Sleeker demonstrates strong HTTP/1.1 performance, achieving **higher throughput and lower average latency** than Nginx and HAProxy under the tested workload.
+
+All three servers were benchmarked using identical request concurrency, duration, response size, and an intentional **1 ms processing delay per request**.
+
+### Throughput Comparison
+
+**Requests per Second - Higher is Better**
+
+```mermaid
+---
+config:
+  xyChart:
+    width: 480
+    height: 260
+    showDataLabel: true
+---
+xychart-beta
+    x-axis ["Sleeker", "Nginx", "HAProxy"]
+    y-axis "Requests/s" 0 --> 40000
+    bar [37520, 33376, 20251]
 ```
+
+### Benchmark Results
+
+| Metric | Sleeker | Nginx | HAProxy |
+|:---|---:|---:|---:|
+| **Requests/sec** | **37,520 🏆** | 33,376 | 20,251 |
+| **Total Requests** | **375,285 🏆** | 333,872 | 202,589 |
+| **Average Latency** | **1.331 ms 🏆** | 1.497 ms | 2.465 ms |
+| **P50 Latency** | **1.341 ms 🏆** | 1.641 ms | 3.022 ms |
+| **P95 Latency** | **1.422 ms 🏆** | 1.955 ms | 3.716 ms |
+| **P99 Latency** | **1.518 ms 🏆** | 2.127 ms | 4.044 ms |
+| **Success Rate** | 100% | 100% | 100% |
+
+### Performance Highlights
+
+Under this benchmark workload, Sleeker achieved:
+
+- **12.4% higher throughput** compared to Nginx.
+- **85.3% higher throughput** compared to HAProxy.
+- **Lower average, P50, P95, and P99 response latencies** than both alternatives.
+- **100% successful responses** across all 375,285 requests.
+
+### Test Configuration
+
+| Parameter | Configuration |
+|:---|:---|
+| **Benchmark Tool** | [oha](https://github.com/hatoo/oha) |
+| **HTTP Protocol** | HTTP/1.1 |
+| **Test Duration** | 10 seconds per server |
+| **Concurrent Connections** | 50 |
+| **Endpoint** | `/http1_get_post` |
+| **Response Size** | 19 bytes |
+| **Processing Delay** | 1 ms per request |
+| **Test Environment** | Local network (`192.168.***.***`) |
+
+> [!IMPORTANT]
+> **Intentional Processing Delay**
+>
+> Every request includes a deliberately introduced **1 ms processing delay** across all three servers to simulate application workload. This delay is included in the reported response times.
+
+> [!NOTE]
+> **Benchmark Disclaimer**
+>
+> These results represent a specific HTTP/1.1 workload under the described test conditions. They should not be interpreted as a universal performance ranking.
+>
+> Actual performance may vary depending on hardware, operating system, server configuration, network conditions, and application workload.
+
+---

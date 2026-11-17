@@ -1,0 +1,32 @@
+services:
+
+  server:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    ports:
+      - "8080:8080"
+    security_opt:
+      - seccomp:unconfined
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 256M
+    environment:
+      JDK_JAVA_OPTIONS: >-
+        -Xms64m
+        -Xmx128m
+        -XX:+ExitOnOutOfMemoryError
+    volumes:
+      - ./tls:/tls:ro
+    networks:
+      - sleeker-network
+
+networks:
+  sleeker-network:
+    driver: bridge

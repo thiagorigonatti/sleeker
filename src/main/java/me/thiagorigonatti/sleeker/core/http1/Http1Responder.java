@@ -5,12 +5,14 @@
 
 package me.thiagorigonatti.sleeker.core.http1;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import me.thiagorigonatti.sleeker.util.ContentType;
 
-import java.nio.charset.StandardCharsets;
+import java.util.Set;
 
 public class Http1Responder {
 
@@ -18,49 +20,38 @@ public class Http1Responder {
         throw new AssertionError("Instantiation of an utility class");
     }
 
-    public static void reply(ChannelHandlerContext ctx, FullHttpRequest msg, HttpResponseStatus httpResponseStatus) {
 
-        boolean end = msg.method().equals(HttpMethod.HEAD);
+    public static void reply(final ChannelHandlerContext ctx, final FullHttpRequest msg, final HttpResponseStatus httpResponseStatus) {
 
-        ByteBuf body = end ? ctx.alloc().buffer(0) : ctx.alloc().buffer();
-        if (!end) {
-            body.writeCharSequence(httpResponseStatus.reasonPhrase(), StandardCharsets.UTF_8);
-        }
+        final Http1Response http1Response = new Http1Response(ctx, msg.protocolVersion());
 
-        FullHttpResponse response = new DefaultFullHttpResponse(
-                HttpVersion.HTTP_1_1,
-                httpResponseStatus,
-                body
-        );
+        final String body = msg.method().equals(HttpMethod.HEAD) ? "" : httpResponseStatus.reasonPhrase();
 
-        response.headers()
-                .set(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType())
-                .setInt(HttpHeaderNames.CONTENT_LENGTH, end ? 0 : body.readableBytes());
+        http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
 
-        ctx.writeAndFlush(response);
+        http1Response.reply(body, httpResponseStatus);
     }
 
-    public static void replyNotImplemented(Http1Request http1Request, Http1Response http1Response) {
 
-        boolean end = http1Request.method().equals(HttpMethod.HEAD);
+    public static void replyMethodNotAllowed(final HttpMethod method, final Set<HttpMethod> allowedMethods, final Http1Response http1Response) {
 
-        ChannelHandlerContext ctx = http1Response.getCtx();
+        final String body = method.equals(HttpMethod.HEAD) ? "" : HttpResponseStatus.METHOD_NOT_ALLOWED.reasonPhrase();
 
-        ByteBuf body = end ? ctx.alloc().buffer(0) : ctx.alloc().buffer();
-        if (!end) {
-            body.writeCharSequence(HttpResponseStatus.NOT_IMPLEMENTED.reasonPhrase(), StandardCharsets.UTF_8);
-        }
+        http1Response.addHeader(HttpHeaderNames.ALLOW, String.join(", ", allowedMethods.stream().map(HttpMethod::asciiName).toList()));
 
-        FullHttpResponse response = new DefaultFullHttpResponse(
-                HttpVersion.HTTP_1_1,
-                HttpResponseStatus.NOT_IMPLEMENTED,
-                body
-        );
+        http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
 
-        response.headers()
-                .set(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType())
-                .setInt(HttpHeaderNames.CONTENT_LENGTH, end ? 0 : body.readableBytes());
-
-        ctx.writeAndFlush(response);
+        http1Response.reply(body, HttpResponseStatus.METHOD_NOT_ALLOWED);
     }
+
+
+    public static void replyNotImplemented(final Http1Request http1Request, final Http1Response http1Response) {
+
+        final String body = http1Request.getMethod().equals(HttpMethod.HEAD) ? "" : HttpResponseStatus.NOT_IMPLEMENTED.reasonPhrase();
+
+        http1Response.addHeader(HttpHeaderNames.CONTENT_TYPE, ContentType.TEXT_PLAIN_UTF8.getMimeType());
+
+        http1Response.reply(body, HttpResponseStatus.NOT_IMPLEMENTED);
+    }
+
 }
